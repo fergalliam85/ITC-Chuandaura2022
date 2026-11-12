@@ -1,10 +1,21 @@
 (() => {
   'use strict';
 
-  const ACCOUNT_KEY = 'on-tin-hoc.accounts';
   const SESSION_KEY = 'on-tin-hoc.session';
   const GUEST_SESSION = '__guest__';
   const PROGRESS_PREFIX = 'on-tin-hoc.progress.';
+  const supabaseConfig = window.ITC_SUPABASE_CONFIG || {};
+  let supabaseClient = null;
+  let supabaseConfigError = null;
+  if (window.supabase && typeof window.supabase.createClient === 'function' &&
+    typeof supabaseConfig.url === 'string' && supabaseConfig.url.trim() &&
+    typeof supabaseConfig.anonKey === 'string' && supabaseConfig.anonKey.trim()) {
+    try {
+      supabaseClient = window.supabase.createClient(supabaseConfig.url.trim(), supabaseConfig.anonKey.trim());
+    } catch (error) {
+      supabaseConfigError = error;
+    }
+  }
   const PAGE_SIZE = 20;
   const PRACTICAL_HISTORY_LIMIT = 20;
   const topics = [
@@ -27,7 +38,8 @@
   const searchInput = document.getElementById('global-search');
   const toast = document.getElementById('toast');
   let account = null;
-  let progress = { learned: [], saved: [], recent: [] };
+  let progress = emptyProgress();
+  let progressSaveQueue = Promise.resolve();
   let currentView = 'home';
   let selectedTopic = null;
   let questionFilter = 'all';
@@ -69,17 +81,20 @@
     localStorage.setItem(key, JSON.stringify(value));
   }
 
+  function emptyProgress() {
+    return { learned: [], saved: [], recent: [], practicalHistory: [] };
+  }
+
   function accountProgressKey(email) {
     return `${PROGRESS_PREFIX}${encodeURIComponent(email)}`;
   }
 
-  function loadProgress(email) {
-    const saved = readJson(accountProgressKey(email), { learned: [], saved: [], recent: [], practicalHistory: [] });
+  function normalizeProgress(saved) {
     if (!saved || !Array.isArray(saved.learned) || !Array.isArray(saved.saved) || !Array.isArray(saved.recent) ||
       (saved.practicalHistory !== undefined && !Array.isArray(saved.practicalHistory))) {
       throw new Error('Dữ liệu tiến độ học không đúng định dạng. Tiến độ hiện có chưa bị thay đổi.');
     }
-    progress = {
+    return {
       learned: [...new Set(saved.learned.filter(Number.isInteger))],
       saved: [...new Set(saved.saved.filter(Number.isInteger))],
       recent: [...new Set(saved.recent.filter(Number.isInteger))],
@@ -87,38 +102,62 @@
     };
   }
 
+  function loadLocalProgress(email) {
+    progress = normalizeProgress(readJson(accountProgressKey(email), emptyProgress()));
+  }
+
+  function requireSupabaseClient() {
+    if (!window.supabase) throw new Error('Không tải được thư viện đồng bộ. Hãy kiểm tra kết nối Internet rồi tải lại trang.');
+    if (!supabaseConfig.url || !supabaseConfig.anonKey) {
+      throw new Error('Chưa cấu hình Supabase. Hãy làm theo hướng dẫn trong SUPABASE_SETUP.md.');
+    }
+    if (!supabaseClient) {
+      throw new Error(`Cấu hình Supabase không hợp lệ${supabaseConfigError ? `: ${supabaseConfigError.message}` : '.'}`);
+    }
+    return supabaseClient;
+  }
+
+  async function saveCloudProgress(userId, value) {
+    const { error } = await requireSupabaseClient()
+      .from('study_progress')
+      .upsert({ user_id: userId, progress: value, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (error) throw new Error(`Không thể đồng bộ tiến độ: ${error.message}`);
+  }
+
+  async function loadCloudProgress(user) {
+    const { data, error } = await requireSupabaseClient()
+      .from('study_progress')
+      .select('progress')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (error) throw new Error(`Không thể tải tiến độ từ máy chủ: ${error.message}`);
+    if (data) {
+      progress = normalizeProgress(data.progress);
+      return false;
+    }
+
+    const legacy = readJson(accountProgressKey(user.email), null);
+    if (legacy !== null) {
+      progress = normalizeProgress(legacy);
+      await saveCloudProgress(user.id, progress);
+      return true;
+    }
+    progress = emptyProgress();
+    return false;
+  }
+
   function persistProgress() {
     if (!account) throw new Error('Bạn cần đăng nhập để lưu tiến độ.');
-    writeJson(accountProgressKey(account.email), progress);
-  }
-
-  function normalizeEmail(email) {
-    return email.trim().toLowerCase();
-  }
-
-  function bytesToHex(bytes) {
-    return Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
-  }
-
-  function hexToBytes(hex) {
-    return Uint8Array.from(hex.match(/.{2}/g) || [], byte => parseInt(byte, 16));
-  }
-
-  async function passwordHash(password, salt) {
-    if (!window.crypto || !window.crypto.subtle) {
-      throw new Error('Trình duyệt chưa hỗ trợ bảo mật tài khoản. Hãy mở trang bằng HTTPS hoặc localhost.');
+    if (account.email === GUEST_SESSION) {
+      writeJson(accountProgressKey(account.email), progress);
+      return Promise.resolve();
     }
-    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
-    const result = await crypto.subtle.deriveBits({
-      name: 'PBKDF2', salt: hexToBytes(salt), iterations: 150000, hash: 'SHA-256'
-    }, key, 256);
-    return bytesToHex(result);
-  }
-
-  function getAccounts() {
-    const accounts = readJson(ACCOUNT_KEY, []);
-    if (!Array.isArray(accounts)) throw new Error('Danh sách tài khoản trong trình duyệt không hợp lệ.');
-    return accounts;
+    if (!account.id) throw new Error('Phiên đăng nhập không hợp lệ. Hãy đăng nhập lại.');
+    const snapshot = JSON.parse(JSON.stringify(progress));
+    const userId = account.id;
+    const save = progressSaveQueue.then(() => saveCloudProgress(userId, snapshot));
+    progressSaveQueue = save.then(() => undefined, () => undefined);
+    return save;
   }
 
   function showAuthForm(mode) {
@@ -126,21 +165,34 @@
     document.getElementById('register-form').classList.toggle('is-hidden', mode !== 'register');
   }
 
-  function setAuthenticatedUser(user) {
-    loadProgress(user.email);
-    localStorage.setItem(SESSION_KEY, user.email);
-    account = user;
+  async function setAuthenticatedUser(user) {
+    const isGuest = user.email === GUEST_SESSION;
+    const name = isGuest
+      ? 'Khách'
+      : String(user.user_metadata?.display_name || user.email?.split('@')[0] || 'Người học');
+    account = { ...user, name };
+    let migratedLegacyProgress = false;
+    try {
+      if (isGuest) loadLocalProgress(user.email);
+      else migratedLegacyProgress = await loadCloudProgress(user);
+    } catch (error) {
+      account = null;
+      throw error;
+    }
+    if (isGuest) localStorage.setItem(SESSION_KEY, user.email);
+    else localStorage.removeItem(SESSION_KEY);
     authView.classList.add('is-hidden');
     appView.classList.remove('is-hidden');
     document.getElementById('user-name').textContent = account.name;
-    document.querySelector('.profile-copy small').textContent = user.email === GUEST_SESSION
+    document.querySelector('.profile-copy small').textContent = isGuest
       ? 'Dùng không cần tài khoản'
-      : 'Gói học cá nhân';
+      : 'Đồng bộ đa thiết bị';
     const initial = account.name.trim().charAt(0) || '?';
     document.getElementById('user-avatar').textContent = initial;
     document.getElementById('top-avatar').textContent = initial;
     renderTopicNav();
     renderPage();
+    return migratedLegacyProgress;
   }
 
   function topicForQuestion(question) {
@@ -763,7 +815,7 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function saveOfficeResult() {
+  async function saveOfficeResult() {
     if (!officeExam || officeExam.completed) return;
     const score = officeScore();
     const attempt = {
@@ -778,7 +830,7 @@
     const previousHistory = progress.practicalHistory;
     progress.practicalHistory = [attempt, ...previousHistory].slice(0, PRACTICAL_HISTORY_LIMIT);
     try {
-      persistProgress();
+      await persistProgress();
       officeExam.completed = true;
       renderOfficePracticalPage(officeExam.appKind);
       notify(`Đã lưu kết quả tự chấm: ${score.earned}/${score.maxPoints} điểm.`);
@@ -808,7 +860,7 @@
     }
   }
 
-  function savePracticalResult() {
+  async function savePracticalResult() {
     if (!practicalExam || practicalExam.completed) return;
     const score = practicalScore();
     const attempt = {
@@ -823,7 +875,7 @@
     const previousHistory = progress.practicalHistory;
     progress.practicalHistory = [attempt, ...previousHistory].slice(0, PRACTICAL_HISTORY_LIMIT);
     try {
-      persistProgress();
+      await persistProgress();
       practicalExam.completed = true;
       renderPracticalPage();
       notify(`Đã lưu kết quả tự chấm: ${score.earned}/${score.maxPoints} điểm.`);
@@ -1051,19 +1103,24 @@
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const name = String(formData.get('name')).trim();
-    const email = normalizeEmail(String(formData.get('email')));
+    const email = String(formData.get('email')).trim().toLowerCase();
     const password = String(formData.get('password'));
     try {
       if (password.length < 8) throw new Error('Mật khẩu cần có ít nhất 8 ký tự.');
-      const accounts = getAccounts();
-      if (accounts.some(user => user.email === email)) throw new Error('Email này đã có tài khoản trên trình duyệt.');
-      const salt = bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
-      const hash = await passwordHash(password, salt);
-      const user = { name, email, salt, hash };
-      accounts.push(user);
-      writeJson(ACCOUNT_KEY, accounts);
-      setAuthenticatedUser(user);
-      notify('Tài khoản đã được tạo. Chúc bạn học tốt!');
+      const { data, error } = await requireSupabaseClient().auth.signUp({
+        email,
+        password,
+        options: { data: { display_name: name } }
+      });
+      if (error) throw error;
+      if (data.session && data.user) {
+        const migrated = await setAuthenticatedUser(data.user);
+        notify(migrated
+          ? 'Tài khoản đã tạo. Tiến độ trên thiết bị này đã được đồng bộ.'
+          : 'Tài khoản đã tạo. Chúc bạn học tốt!');
+      } else {
+        notify('Đã gửi yêu cầu đăng ký. Hãy kiểm tra email để xác nhận trước khi đăng nhập.');
+      }
     } catch (error) {
       notify(error.message || 'Không thể tạo tài khoản. Vui lòng thử lại.', true);
     }
@@ -1072,30 +1129,31 @@
   async function handleLogin(event) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const email = normalizeEmail(String(formData.get('email')));
+    const email = String(formData.get('email')).trim().toLowerCase();
     const password = String(formData.get('password'));
     try {
-      const user = getAccounts().find(item => item.email === email);
-      if (!user) throw new Error('Email hoặc mật khẩu chưa chính xác.');
-      const hash = await passwordHash(password, user.salt);
-      if (hash !== user.hash) throw new Error('Email hoặc mật khẩu chưa chính xác.');
-      setAuthenticatedUser(user);
-      notify(`Chào mừng trở lại, ${user.name}!`);
+      const { data, error } = await requireSupabaseClient().auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      if (!data.user) throw new Error('Đăng nhập không trả về thông tin tài khoản.');
+      const migrated = await setAuthenticatedUser(data.user);
+      notify(migrated
+        ? 'Chào mừng trở lại! Tiến độ trên thiết bị này đã được đồng bộ.'
+        : `Chào mừng trở lại, ${account.name}!`);
     } catch (error) {
       notify(error.message || 'Không thể đăng nhập. Vui lòng thử lại.', true);
     }
   }
 
-  function handleGuestAccess() {
+  async function handleGuestAccess() {
     try {
-      setAuthenticatedUser({ name: 'Khách', email: GUEST_SESSION });
+      await setAuthenticatedUser({ name: 'Khách', email: GUEST_SESSION });
       notify('Bạn đang học với tài khoản khách. Tiến độ được lưu trên trình duyệt này.');
     } catch (error) {
       notify(error.message || 'Không thể mở không gian học.', true);
     }
   }
 
-  function toggleProgress(action, id) {
+  async function toggleProgress(action, id) {
     const numberId = Number(id);
     if (!window.CDR_QUESTIONS.some(question => question.id === numberId)) return;
     const previousProgress = {
@@ -1112,7 +1170,7 @@
       if (action === 'learn') progress.recent = [numberId, ...progress.recent.filter(item => item !== numberId)].slice(0, 20);
     }
     try {
-      persistProgress();
+      await persistProgress();
       renderTopicNav();
       if (currentView === 'home') renderPage();
       else if (currentView === 'practice') renderPracticePage();
@@ -1132,10 +1190,19 @@
   document.getElementById('register-form').addEventListener('submit', handleRegister);
   document.getElementById('login-form').addEventListener('submit', handleLogin);
   document.getElementById('guest-button').addEventListener('click', handleGuestAccess);
-  document.getElementById('logout-button').addEventListener('click', () => {
-    localStorage.removeItem(SESSION_KEY);
+  document.getElementById('logout-button').addEventListener('click', async () => {
+    try {
+      if (account && account.email !== GUEST_SESSION) {
+        const { error } = await requireSupabaseClient().auth.signOut();
+        if (error) throw error;
+      }
+      localStorage.removeItem(SESSION_KEY);
+    } catch (error) {
+      notify(error.message || 'Không thể đăng xuất. Vui lòng thử lại.', true);
+      return;
+    }
     account = null;
-    progress = { learned: [], saved: [], recent: [], practicalHistory: [] };
+    progress = emptyProgress();
     currentView = 'home';
     selectedTopic = null;
     questionFilter = 'all';
@@ -1333,22 +1400,33 @@
     }
   });
 
-  try {
-    if (!Array.isArray(window.CDR_QUESTIONS) || window.CDR_QUESTIONS.length !== 285) {
-      throw new Error('Bộ câu hỏi chưa tải đủ 285 câu. Hãy kiểm tra tệp questions.js.');
+  async function initialize() {
+    try {
+      if (!Array.isArray(window.CDR_QUESTIONS) || window.CDR_QUESTIONS.length !== 285) {
+        throw new Error('Bộ câu hỏi chưa tải đủ 285 câu. Hãy kiểm tra tệp questions.js.');
+      }
+      if (!Array.isArray(window.CDR_PRACTICAL_TEMPLATES) || window.CDR_PRACTICAL_TEMPLATES.length !== 4) {
+        throw new Error('Không tải đủ 4 dạng đề thực hành. Hãy kiểm tra tệp practical.js.');
+      }
+      if (supabaseClient) {
+        const { data, error } = await supabaseClient.auth.getSession();
+        if (error) throw new Error(`Không thể khôi phục phiên đăng nhập: ${error.message}`);
+        if (data.session) {
+          await setAuthenticatedUser(data.session.user);
+          return;
+        }
+      }
+      const currentEmail = localStorage.getItem(SESSION_KEY);
+      if (currentEmail === GUEST_SESSION) {
+        await setAuthenticatedUser({ name: 'Khách', email: GUEST_SESSION });
+      } else if (currentEmail) {
+        localStorage.removeItem(SESSION_KEY);
+      }
+    } catch (error) {
+      notify(error.message || 'Không thể khởi tạo ứng dụng.', true);
     }
-    if (!Array.isArray(window.CDR_PRACTICAL_TEMPLATES) || window.CDR_PRACTICAL_TEMPLATES.length !== 4) {
-      throw new Error('Không tải đủ 4 dạng đề thực hành. Hãy kiểm tra tệp practical.js.');
-    }
-    const currentEmail = localStorage.getItem(SESSION_KEY);
-    if (currentEmail === GUEST_SESSION) {
-      setAuthenticatedUser({ name: 'Khách', email: GUEST_SESSION });
-    } else if (currentEmail) {
-      const existing = getAccounts().find(user => user.email === currentEmail);
-      if (existing) setAuthenticatedUser(existing);
-      else localStorage.removeItem(SESSION_KEY);
-    }
-  } catch (error) {
-    notify(error.message || 'Không thể khởi tạo ứng dụng.', true);
   }
+
+  if (supabaseClient) document.getElementById('auth-setup-note').classList.add('is-hidden');
+  initialize();
 })();

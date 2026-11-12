@@ -28,7 +28,11 @@
       <form id="login-form" class="auth-form">
         <p class="eyebrow">CHÀO MỪNG TRỞ LẠI</p>
         <h2>Đăng nhập</h2>
-        <p class="muted">Tiếp tục hành trình ôn tập của bạn.</p>
+        <p class="muted">Đăng nhập để dùng tài khoản và tiến độ trên các thiết bị.</p>
+        <p id="auth-setup-note" class="auth-setup-note">
+          Đồng bộ đa thiết bị chưa được cấu hình.
+          <a href="SUPABASE_SETUP.md">Xem hướng dẫn thiết lập Supabase</a>.
+        </p>
         <label for="login-email">Email</label>
         <input id="login-email" name="email" type="email" autocomplete="username" placeholder="ban@email.com" required>
         <label for="login-password">Mật khẩu</label>
@@ -41,7 +45,7 @@
       <form id="register-form" class="auth-form is-hidden">
         <p class="eyebrow">BẮT ĐẦU ÔN TẬP</p>
         <h2>Tạo tài khoản</h2>
-        <p class="muted">Tiến độ học sẽ được lưu trên thiết bị của bạn.</p>
+        <p class="muted">Tạo tài khoản dùng chung trên các thiết bị của bạn.</p>
         <label for="register-name">Tên hiển thị</label>
         <input id="register-name" name="name" type="text" autocomplete="name" placeholder="Tên của bạn" required maxlength="60">
         <label for="register-email">Email</label>
@@ -102,6 +106,8 @@
   <script src="questions.js"></script>
   <script src="practical.js"></script>
   <script src="office-practical.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
