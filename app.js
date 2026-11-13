@@ -19,6 +19,7 @@
     { id: 'email', name: 'Thư điện tử', icon: '@', color: '#cb718a', pale: '#fff0f4' }
   ];
   const palette = ['#5570e8', '#d38c37', '#41967a', '#8463d9', '#db7181', '#41967a', '#4278ca', '#31966e', '#d76f4a', '#5d75d5', '#cb718a'];
+  const welcomeView = document.getElementById('welcome-view');
   const appView = document.getElementById('app-view');
   const pageContent = document.getElementById('page-content');
   const searchInput = document.getElementById('global-search');
@@ -99,7 +100,6 @@
   function initializeGuest() {
     account = { name: 'Khách', email: GUEST_SESSION };
     loadLocalProgress(GUEST_SESSION);
-    appView.classList.remove('is-hidden');
     document.getElementById('user-name').textContent = account.name;
     document.querySelector('.profile-copy small').textContent = 'Dùng không cần tài khoản';
     const initial = account.name.trim().charAt(0) || '?';
@@ -108,6 +108,18 @@
     renderTopicNav();
     renderPage();
   }
+
+  document.getElementById('start-learning-button').addEventListener('click', () => {
+    const startButton = document.getElementById('start-learning-button');
+    startButton.disabled = true;
+    appView.classList.remove('is-hidden');
+    appView.classList.add('welcome-enter');
+    welcomeView.classList.add('is-leaving');
+    window.setTimeout(() => {
+      welcomeView.classList.add('is-hidden');
+      appView.classList.remove('welcome-enter');
+    }, 520);
+  });
 
   function topicForQuestion(question) {
     return topics.find(topic => topic.id === question.topic);
