@@ -28,6 +28,35 @@ button { cursor: pointer; }
 .brand-copy { display: grid; min-width: 0; gap: 3px; letter-spacing: 0; line-height: 1.25; }
 .brand-copy strong { font: 800 17px Manrope, sans-serif; }
 .brand-copy small { color: #78839a; font: 500 9px/1.4 'DM Sans', 'Segoe UI', sans-serif; }
+:root {
+  --logo-pink: #f8c3d9;
+  --logo-purple: #d7b7ff;
+  --logo-blue: #8ccaf6;
+  --logo-mint: #b9f0d9;
+  --logo-navy: #1d3557;
+  --logo-sky: #5ca8e3;
+  --logo-rose: #f5adca;
+}
+
+.brand-icon-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  object-fit: contain;
+}
+.brand-icon-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 4px;
+  border-radius: 14px;
+  background: linear-gradient(140deg, rgba(112, 149, 255, .32), rgba(93, 214, 230, .38) 52%, rgba(137, 130, 255, .34));
+  border: 1px solid rgba(255,255,255,0.94);
+  box-shadow: 0 14px 30px rgba(76, 130, 218, 0.24), inset 0 2px 12px rgba(255,255,255,0.7);
+}
 .eyebrow { color: var(--blue); font-size: 10px; letter-spacing: 1.4px; font-weight: 700; }
 .muted { color: var(--muted); font-size: 13px; }
 .button { border: 0; border-radius: 10px; padding: 11px 16px; font-weight: 700; transition: .18s ease; }
@@ -36,28 +65,32 @@ button { cursor: pointer; }
 .button-wide { width: 100%; margin-top: 21px; display: flex; justify-content: space-between; align-items: center; }
 .icon-button { display: grid; place-items: center; border: 0; background: transparent; color: var(--muted); }
 
-.welcome-screen { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; overflow-x: hidden; overflow-y: auto; padding: 28px; color: #17233c; background: radial-gradient(ellipse at 50% 0%, #fff 0, #f8faff 38%, #edf1ff 100%); transition: opacity .48s ease, transform .55s cubic-bezier(.2,.8,.2,1), filter .48s ease; }
+.welcome-screen { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; overflow-x: hidden; overflow-y: auto; padding: 28px; color: #17233c; background: radial-gradient(ellipse at 9% 12%, rgba(112, 147, 255, .5), transparent 29%), radial-gradient(ellipse at 82% 10%, rgba(153, 143, 255, .5), transparent 30%), radial-gradient(ellipse at 94% 48%, rgba(103, 199, 255, .42), transparent 32%), radial-gradient(ellipse at 16% 82%, rgba(91, 220, 218, .52), transparent 34%), radial-gradient(ellipse at 57% 91%, rgba(130, 170, 255, .38), transparent 30%), radial-gradient(ellipse at 48% 45%, rgba(104, 199, 255, .32), transparent 38%), linear-gradient(135deg, #edf2ff, #f1efff 48%, #eafffc); transition: opacity .48s ease, transform .55s cubic-bezier(.2,.8,.2,1), filter .48s ease; }
 .welcome-screen.is-leaving { opacity: 0; transform: scale(1.035); filter: blur(12px); pointer-events: none; }
 .welcome-content { position: relative; z-index: 1; width: min(100%, 980px); display: flex; flex-direction: column; align-items: center; margin-block: auto; animation: welcome-rise .8s cubic-bezier(.2,.8,.2,1) both; }
-.welcome-brand { display: inline-flex; align-items: center; gap: 11px; margin-bottom: 25px; color: var(--ink); text-decoration: none; }
-.welcome-brand-mark { width: 43px; height: 43px; display: grid; place-items: center; border: 1px solid #ffffffc9; border-radius: 15px; color: white; background: linear-gradient(145deg, #6784ff, #405bdb); box-shadow: 0 8px 24px #4866e83d, inset 0 1px #ffffff80; font: 800 14px Manrope, sans-serif; }
-.welcome-brand > span:last-child { display: grid; gap: 2px; }
-.welcome-brand strong { font: 800 15px Manrope, sans-serif; letter-spacing: -.3px; }
-.welcome-brand small { color: #7c87a0; font-size: 8px; font-weight: 700; letter-spacing: 1.15px; }
-.welcome-glass { position: relative; width: min(100%, 660px); padding: clamp(30px, 6vw, 58px); overflow: hidden; border: 1px solid #ffffffd9; border-radius: 34px; background: linear-gradient(145deg, #ffffffc9, #ffffff78); box-shadow: 0 32px 100px #6375ae24, 0 8px 24px #7181ad12, inset 0 1px #fff; backdrop-filter: blur(28px) saturate(155%); -webkit-backdrop-filter: blur(28px) saturate(155%); text-align: center; }
+.welcome-brand { display: inline-flex; align-items: center; gap: 11px; margin-bottom: 18px; color: var(--ink); text-align: left; text-decoration: none; }
+.welcome-brand-mark { width: 42px; height: 42px; display: grid; flex: 0 0 auto; place-items: center; overflow: hidden; padding: 4px; border: 1px solid rgba(255,255,255,.9); border-radius: 14px; background: linear-gradient(140deg, #557cf2, #6d7ce8 58%, #718be9); box-shadow: 0 8px 22px rgba(80, 120, 221, .3), inset 0 1px rgba(255,255,255,.85); }
+.welcome-brand-star { color: white; font: 700 24px/1 'Segoe UI Symbol', 'Segoe UI', sans-serif; text-shadow: 0 0 12px rgba(255,255,255,.7); }
+.welcome-brand-copy { display: grid; gap: 2px; }
+.welcome-brand-copy strong { color: #25365e; font: 800 15px Manrope, sans-serif; letter-spacing: -.3px; }
+.welcome-brand-copy small { color: #7c87a0; font-size: 8px; font-weight: 800; letter-spacing: 1.15px; }
+.welcome-glass { position: relative; width: min(100%, 660px); padding: clamp(30px, 6vw, 58px); overflow: hidden; border: 1px solid rgba(255,255,255,0.8); border-radius: 34px; background: linear-gradient(145deg, rgba(255,255,255,0.58), rgba(255,255,255,0.24)); box-shadow: 0 32px 100px rgba(120, 110, 169, 0.12), 0 8px 24px rgba(116, 131, 186, 0.08), inset 0 1px rgba(255,255,255,0.8); backdrop-filter: blur(28px) saturate(155%); -webkit-backdrop-filter: blur(28px) saturate(155%); text-align: center; }
 .welcome-glass::before { position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(130deg, #ffffff8a, transparent 38%, #ffffff12 75%, #fff9); content: ''; pointer-events: none; }
 .welcome-glass > * { position: relative; }
-.welcome-sparkle { width: 43px; height: 43px; display: grid; place-items: center; margin: 0 auto 20px; border: 1px solid #ffffff; border-radius: 15px; color: #5470e8; background: #f0f3ffb8; box-shadow: 0 6px 20px #6c80d51c; font-size: 19px; }
-.welcome-eyebrow { margin: 0; color: #6377c3; font-size: 9px; font-weight: 800; letter-spacing: 1.5px; }
+.welcome-logo-stage { position: relative; isolation: isolate; width: min(248px, 100%); height: 60px; display: grid; place-items: center; margin: 0 auto 8px; }
+.welcome-logo-stage::before { position: absolute; z-index: -1; inset: 6px 20px; border-radius: 50%; background: linear-gradient(110deg, rgba(83, 224, 221, .9), rgba(90, 177, 255, .92) 36%, rgba(137, 125, 255, .9) 68%, rgba(118, 148, 255, .88)); filter: blur(22px); content: ''; }
+.welcome-logo-frame { width: 44px; height: 44px; display: grid; place-items: center; overflow: hidden; padding: 3px; border: 1px solid rgba(255, 255, 255, .92); border-radius: 14px; background: linear-gradient(145deg, rgba(255,255,255,.86), rgba(255,255,255,.48)); box-shadow: 0 8px 22px rgba(106, 126, 181, .22), inset 0 1px rgba(255,255,255,.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.welcome-logo-frame img { display: block; width: 100%; height: 100%; border-radius: 13px; object-fit: contain; }
+.welcome-eyebrow { margin: 0 0 12px; color: #6373cf; font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
 .welcome-glass h1 { margin: 15px 0 12px; font: 800 clamp(36px, 6vw, 59px)/1.08 Manrope, 'Segoe UI', sans-serif; letter-spacing: -2.7px; }
-.welcome-glass h1 span { color: #536ee0; }
+.welcome-glass h1 span { color: #536ee0; background: linear-gradient(100deg, #536ee0, #695fdf 55%, #507fda); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 .welcome-description { max-width: 430px; margin: 0 auto; color: #6e7890; font-size: 14px; line-height: 1.8; }
 .welcome-highlights { display: flex; align-items: center; justify-content: center; gap: 28px; margin: 29px auto 27px; }
 .welcome-highlight { display: grid; gap: 1px; }
 .welcome-highlight strong { color: #25365e; font: 800 20px Manrope, sans-serif; }
 .welcome-highlight span { color: #828ba0; font-size: 10px; }
 .welcome-highlight-divider { width: 1px; height: 28px; background: #dce1ef; }
-.welcome-cta { min-width: 210px; display: inline-flex; align-items: center; justify-content: space-between; gap: 30px; padding: 8px 9px 8px 23px; border: 1px solid #ffffff75; border-radius: 999px; color: white; background: linear-gradient(110deg, #607cf0, #4662db); box-shadow: 0 12px 28px #536fe044, inset 0 1px #ffffff70; font-size: 13px; font-weight: 700; transition: transform .2s ease, box-shadow .2s ease, filter .2s ease; }
+.welcome-cta { min-width: 210px; display: inline-flex; align-items: center; justify-content: space-between; gap: 30px; padding: 8px 9px 8px 23px; border: 1px solid #ffffff75; border-radius: 999px; color: white; background: linear-gradient(110deg, #557df0, #5f70e5 58%, #7163d8); box-shadow: 0 12px 28px rgba(86, 116, 226, .32), inset 0 1px #ffffff70; font-size: 13px; font-weight: 700; transition: transform .2s ease, box-shadow .2s ease, filter .2s ease; }
 .welcome-cta:hover { transform: translateY(-2px); box-shadow: 0 16px 34px #536fe052, inset 0 1px #ffffff70; filter: brightness(1.04); }
 .welcome-cta:active { transform: scale(.98); }
 .welcome-cta:focus-visible { outline: 3px solid #8095ff; outline-offset: 4px; }
@@ -68,22 +101,24 @@ button { cursor: pointer; }
 .welcome-bottom-note { margin: 22px 0 0; color: #929ab0; font-size: 8px; font-weight: 700; letter-spacing: 1.55px; }
 .welcome-copyright { margin: 7px 0 0; color: #9aa2b4; font-size: 10px; }
 .welcome-orb { position: fixed; border-radius: 50%; filter: blur(3px); pointer-events: none; animation: welcome-float 9s ease-in-out infinite alternate; }
-.welcome-orb-one { top: -180px; left: 8%; width: 420px; height: 420px; background: radial-gradient(circle at 40% 55%, #cbd6ffb5, #dce4ff4a 48%, transparent 70%); }
-.welcome-orb-two { right: 3%; bottom: -240px; width: 540px; height: 540px; background: radial-gradient(circle at 40% 40%, #d2e8ffd1, #e1eaff6b 48%, transparent 71%); animation-delay: -4s; }
-.welcome-orb-three { top: 42%; right: 15%; width: 210px; height: 210px; background: radial-gradient(circle, #f3d9ff87, #efdfff30 50%, transparent 72%); animation-duration: 12s; }
+.welcome-orb-one { top: -180px; left: 8%; width: 420px; height: 420px; background: radial-gradient(circle at 40% 55%, rgba(114, 139, 255, .48), rgba(119, 204, 255, .3) 48%, transparent 70%); }
+.welcome-orb-two { right: 3%; bottom: -240px; width: 540px; height: 540px; background: radial-gradient(circle at 40% 40%, rgba(88, 216, 205, .42), rgba(123, 194, 255, .28) 48%, transparent 71%); animation-delay: -4s; }
+.welcome-orb-three { top: 42%; right: 15%; width: 210px; height: 210px; background: radial-gradient(circle, rgba(123, 146, 255, .36), rgba(112, 215, 230, .2) 50%, transparent 72%); animation-duration: 12s; }
 .app-shell.welcome-enter { animation: app-reveal .55s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes welcome-rise { from { opacity: 0; transform: translateY(18px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes welcome-float { from { transform: translate3d(-12px, -10px, 0) scale(.98); } to { transform: translate3d(20px, 15px, 0) scale(1.06); } }
 @keyframes app-reveal { from { opacity: 0; transform: scale(.99); } to { opacity: 1; transform: scale(1); } }
 
-.app-shell { min-height: 100vh; }
+.app-shell { min-height: 100vh; background: radial-gradient(ellipse at 18% 8%, rgba(119, 158, 255, .18), transparent 38%), radial-gradient(ellipse at 84% 14%, rgba(144, 145, 255, .16), transparent 35%), radial-gradient(ellipse at 86% 82%, rgba(89, 205, 227, .14), transparent 38%), radial-gradient(ellipse at 20% 88%, rgba(101, 219, 199, .13), transparent 34%), #f5f7fb; }
 .sidebar { position: fixed; z-index: 5; inset: 0 auto 0 0; width: 248px; display: flex; flex-direction: column; overflow-y: auto; direction: rtl; background: white; border-right: 1px solid var(--line); padding: 26px 16px 14px; scrollbar-color: #b7c3e9 #f4f6fb; scrollbar-width: thin; }
 .sidebar > * { direction: ltr; flex-shrink: 0; }
 .sidebar::-webkit-scrollbar { width: 9px; }
 .sidebar::-webkit-scrollbar-track { background: #f4f6fb; }
 .sidebar::-webkit-scrollbar-thumb { border: 2px solid #f4f6fb; border-radius: 8px; background: #b7c3e9; }
-.sidebar-brand { padding: 0 11px; margin-bottom: 42px; }
+.sidebar-brand { width: 100%; gap: 8px; padding: 0 8px; margin-bottom: 28px; }
 .sidebar-brand .brand-mark { width: 38px; height: 38px; font-size: 13px; }
+.sidebar-brand .brand-icon-mark { flex: 0 0 42px; }
+.sidebar-brand .brand-copy { flex: 1; }
 .sidebar-brand .brand-copy strong { font-size: 15px; }
 .sidebar-brand .brand-copy small { max-width: 155px; font-size: 8px; }
 .nav-caption { padding: 0 12px; margin: 0 0 12px; color: #9ba4b5; font-size: 9px; font-weight: 700; letter-spacing: 1.1px; }
@@ -373,7 +408,7 @@ button, input, select { font-family: inherit; }
 
 @media (max-width: 700px) {
   .welcome-screen { padding: 18px; }
-  .welcome-brand { margin-bottom: 18px; }
+  .welcome-brand { margin-bottom: 14px; }
   .welcome-glass { padding: 35px 22px 27px; border-radius: 27px; }
   .welcome-glass h1 { letter-spacing: -1.8px; }
   .welcome-description { font-size: 12px; }
@@ -393,12 +428,12 @@ button, input, select { font-family: inherit; }
 @media (min-width: 701px) and (max-height: 820px) {
   .welcome-screen { padding-block: 14px; }
   .welcome-brand { margin-bottom: 12px; }
-  .welcome-glass { padding-block: 27px; }
-  .welcome-sparkle { margin-bottom: 12px; }
+  .welcome-glass { padding-block: 18px; }
+  .welcome-logo-stage { height: 54px; margin-bottom: 8px; }
   .welcome-glass h1 { margin-block: 8px; font-size: clamp(36px, 3.2vw, 46px); }
-  .welcome-highlights { margin-block: 14px; }
+  .welcome-highlights { margin-block: 12px; }
   .welcome-footnote { margin-top: 10px; }
-  .welcome-bottom-note { margin-top: 8px; }
+  .welcome-bottom-note { margin-top: 6px; }
   .welcome-copyright { margin-top: 4px; }
 }
 
