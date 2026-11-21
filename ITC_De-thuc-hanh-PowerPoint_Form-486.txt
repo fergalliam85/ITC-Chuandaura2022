@@ -1,0 +1,12 @@
+\uFEFFTổ hợp phím tắt trong Microsoft Office
+	Tạo bảng gồm hai cột: Phím tắt và Chức năng
+	Ctrl + P — In tài liệu
+	Ctrl + A — Chọn tất cả đối tượng
+	Ctrl + N — Tạo mới tài liệu
+	Ctrl + C — Sao chép
+PHÍM TẮT SHIFT + F3
+	Tạo SmartArt hoặc sơ đồ minh họa thao tác đổi kiểu chữ
+	UPPERCASE
+	lowercase
+	Capitalize Each Word
+	Toggle Case

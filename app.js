@@ -53,6 +53,94 @@
     }[char]));
   }
 
+  function escapeXml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;'
+    }[char]));
+  }
+
+  function crc32(bytes) {
+    let crc = -1;
+    for (let i = 0; i < bytes.length; i++) {
+      crc ^= bytes[i];
+      for (let bit = 0; bit < 8; bit++) {
+        crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+      }
+    }
+    return (crc ^ -1) >>> 0;
+  }
+
+  function makeZip(entries) {
+    const encoder = new TextEncoder();
+    const chunks = [];
+    const central = [];
+    let offset = 0;
+    entries.forEach(entry => {
+      const nameBytes = encoder.encode(entry.name);
+      const dataBytes = typeof entry.data === 'string' ? encoder.encode(entry.data) : entry.data;
+      const crc = crc32(dataBytes);
+      const header = new Uint8Array(30 + nameBytes.length);
+      const view = new DataView(header.buffer);
+      view.setUint32(0, 0x04034b50, true);
+      view.setUint16(4, 20, true);
+      view.setUint16(6, 0x0800, true);
+      view.setUint16(8, 0, true);
+      view.setUint16(10, 0, true);
+      view.setUint16(12, 0, true);
+      view.setUint32(14, crc, true);
+      view.setUint32(18, dataBytes.length, true);
+      view.setUint32(22, dataBytes.length, true);
+      view.setUint16(26, nameBytes.length, true);
+      view.setUint16(28, 0, true);
+      header.set(nameBytes, 30);
+      chunks.push(header, dataBytes);
+
+      const directory = new Uint8Array(46 + nameBytes.length);
+      const dv = new DataView(directory.buffer);
+      dv.setUint32(0, 0x02014b50, true);
+      dv.setUint16(4, 20, true);
+      dv.setUint16(6, 20, true);
+      dv.setUint16(8, 0x0800, true);
+      dv.setUint16(10, 0, true);
+      dv.setUint16(12, 0, true);
+      dv.setUint16(14, 0, true);
+      dv.setUint32(16, crc, true);
+      dv.setUint32(20, dataBytes.length, true);
+      dv.setUint32(24, dataBytes.length, true);
+      dv.setUint16(28, nameBytes.length, true);
+      dv.setUint16(30, 0, true);
+      dv.setUint16(32, 0, true);
+      dv.setUint16(34, 0, true);
+      dv.setUint16(36, 0, true);
+      dv.setUint32(38, 0, true);
+      dv.setUint32(42, offset, true);
+      directory.set(nameBytes, 46);
+      central.push(directory);
+      offset += header.length + dataBytes.length;
+    });
+
+    const centralSize = central.reduce((sum, item) => sum + item.length, 0);
+    const end = new Uint8Array(22);
+    const ev = new DataView(end.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(4, 0, true);
+    ev.setUint16(6, 0, true);
+    ev.setUint16(8, entries.length, true);
+    ev.setUint16(10, entries.length, true);
+    ev.setUint32(12, centralSize, true);
+    ev.setUint32(16, offset, true);
+    ev.setUint16(20, 0, true);
+
+    const totalLength = offset + centralSize + end.length;
+    const result = new Uint8Array(totalLength);
+    let position = 0;
+    [...chunks, ...central, end].forEach(item => {
+      result.set(item, position);
+      position += item.length;
+    });
+    return result;
+  }
+
   function readJson(key, fallback) {
     const raw = localStorage.getItem(key);
     if (raw === null) return fallback;
@@ -510,7 +598,7 @@
         </section>
         <article class="card practical-generator-card">
           <div><span class="exam-hero-icon">▦</span><h2>Tạo một đề mới</h2>
-          <p>Chọn dạng muốn luyện hoặc để hệ thống chọn ngẫu nhiên. Đề kèm dữ liệu CSV để mở bằng Microsoft Excel.</p></div>
+          <p>Chọn dạng muốn luyện hoặc để hệ thống chọn ngẫu nhiên. Đề được tải về dưới dạng tệp Microsoft Excel (.xlsx).</p></div>
           <label for="practical-template-filter">Dạng bài</label>
           <select id="practical-template-filter" class="filter-select">
             <option value="random" ${practicalTemplateFilter === 'random' ? 'selected' : ''}>Ngẫu nhiên trong 4 dạng</option>
@@ -546,9 +634,9 @@
     pageContent.innerHTML = `<section class="welcome-line practical-welcome">
         <div><p class="eyebrow">ĐỀ THỰC HÀNH · FORM ${practicalExam.formNumber}</p><h1>${escapeHtml(template.shortName)}</h1>
         <p>${escapeHtml(template.description)}</p></div>
-        <button class="button button-secondary" data-download-practical>Tải dữ liệu CSV ↓</button>
+        <button class="button button-secondary" data-download-practical>Tải đề Excel (.xlsx) ↓</button>
       </section>
-      <div class="practical-notice"><strong>Thời gian gợi ý: 45 phút.</strong> Mở tệp CSV trong Excel và làm theo yêu cầu trong bài. Đánh dấu các mục hoàn thành để tự chấm; điểm này phục vụ ôn tập, chưa thay thế chấm bài trên tệp Excel.</div>
+      <div class="practical-notice"><strong>Thời gian gợi ý: 45 phút.</strong> Mở tệp .xlsx trong Microsoft Excel và làm theo yêu cầu trong bài. Đánh dấu các mục hoàn thành để tự chấm; điểm này phục vụ ôn tập, chưa thay thế chấm bài trên tệp Excel.</div>
       <div class="practical-layout">
         <section class="card practical-task-card">
           <div class="practical-card-heading"><div><span class="card-kicker">YÊU CẦU THỰC HÀNH</span><h2>Danh sách công việc</h2></div>
@@ -611,8 +699,8 @@
         <article class="card practical-generator-card">
           <div><span class="exam-hero-icon">${isWord ? 'W' : 'P'}</span><h2>Tạo một đề mới</h2>
           <p>${isWord
-            ? 'Tải tệp HTML tương thích Microsoft Word, mở bằng Word rồi lưu thành .docx để làm bài.'
-            : 'Tải dàn ý .txt và nhập vào PowerPoint bằng Home → New Slide → Slides from Outline.'}</p></div>
+            ? 'Đề được tải về dưới dạng tệp Microsoft Word hoàn chỉnh (.docx).'
+            : 'Đề được tải về dưới dạng bản trình chiếu Microsoft PowerPoint hoàn chỉnh (.pptx).'}</p></div>
           <label for="${viewId}-template-filter">Dạng bài</label>
           <select id="${viewId}-template-filter" class="filter-select">
             <option value="random" ${officeTemplateFilters[appKind] === 'random' ? 'selected' : ''}>Ngẫu nhiên trong ${templates.length} dạng</option>
@@ -637,15 +725,15 @@
       <span>${escapeHtml(title)}</span><strong>${points}đ</strong>
     </label>`).join('');
     const details = officeExam.content.facts.map(item => `<li>${escapeHtml(item)}</li>`).join('');
-    const downloadLabel = isWord ? 'Tải bài mẫu mở bằng Word ↓' : 'Tải dàn ý PowerPoint ↓';
+    const downloadLabel = isWord ? 'Tải đề Word (.docx) ↓' : 'Tải đề PowerPoint (.pptx) ↓';
     pageContent.innerHTML = `<section class="welcome-line practical-welcome">
         <div><p class="eyebrow">ĐỀ THỰC HÀNH ${appLabel.toUpperCase()} · FORM ${officeExam.formNumber}</p><h1>${escapeHtml(template.name)}</h1>
         <p>${escapeHtml(template.description)}</p></div>
         <button class="button button-secondary" data-download-office="${appKind}">${downloadLabel}</button>
       </section>
       <div class="practical-notice"><strong>Thời gian gợi ý: ${template.duration} phút.</strong> ${isWord
-        ? 'Tệp tải về là HTML tương thích Microsoft Word, có thể mở để chỉnh sửa rồi lưu thành .docx.'
-        : 'Tệp tải về là dàn ý văn bản; dùng chức năng Slides from Outline trong PowerPoint để tạo slide, sau đó định dạng theo yêu cầu.'}
+        ? 'Mở tệp .docx trong Microsoft Word và hoàn thiện định dạng theo yêu cầu.'
+        : 'Mở tệp .pptx trong Microsoft PowerPoint, chỉnh sửa các slide và áp dụng hiệu ứng theo yêu cầu.'}
         Đánh dấu các mục đã hoàn thành để tự chấm; điểm này phục vụ ôn tập.</div>
       <div class="practical-layout">
         <section class="card practical-task-card">
@@ -662,7 +750,7 @@
           <ul class="office-facts">${details}</ul>
           ${isWord
             ? `<div class="word-document-preview">${officeExam.content.paragraphs.map(paragraph => `<p>${escapeHtml(paragraph).replace(/\\n/g, '<br>').replace(/\\t/g, '&emsp;')}</p>`).join('')}</div>
-              <p class="muted office-note">Phần nội dung trên được đưa vào tệp HTML tương thích với Word để bạn tiếp tục định dạng theo đề.</p>`
+              <p class="muted office-note">Phần nội dung trên được đưa trực tiếp vào tệp .docx để bạn tiếp tục định dạng theo đề.</p>`
             : officeExam.content.slides.map((slide, index) => `<article class="slide-preview">
                 <span>SLIDE ${index + 1}</span><h3>${escapeHtml(slide.title)}</h3>
                 <ul>${slide.bullets.map(bullet => `<li>${escapeHtml(bullet.trim())}</li>`).join('')}</ul>
@@ -671,34 +759,107 @@
       </div>`;
   }
 
-  function makeWordExerciseHtml() {
-    const paragraphs = officeExam.content.paragraphs.map(paragraph => `<p>${escapeHtml(paragraph).replace(/\\n/g, '<br>').replace(/\\t/g, '&emsp;')}</p>`).join('');
+  function makeWordExerciseDocx() {
     const rubric = getOfficeTemplates('word').find(template => template.id === officeExam.templateId).rubric;
-    const instructions = rubric.map(([title, points]) => `<li>${escapeHtml(title)} <span>(${points} điểm)</span></li>`).join('');
-    return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>${escapeHtml(officeExam.content.title)}</title>
-      <style>@page{size:A4;margin:2cm 2cm 2cm 2.5cm}body{font-family:"Times New Roman",serif;font-size:13pt;line-height:1.3;color:#111}h1,h2{font-family:Arial,sans-serif}h1{font-size:20pt;color:#294fb5}h2{font-size:15pt;margin-top:24pt}li{margin:6pt 0}hr{border:0;border-top:1px dashed #888;margin:24pt 0}.starter p{margin:7pt 0}</style></head>
-      <body><h1>ITC · CÂU LẠC BỘ TIN HỌC</h1><p>Trường Đại học Lâm nghiệp · Phân hiệu Đồng Nai</p>
-      <h2>ĐỀ THỰC HÀNH WORD · FORM ${officeExam.formNumber}</h2><h3>${escapeHtml(officeExam.content.title)}</h3>
-      <p>Thời gian gợi ý: ${officeExam.duration} phút. Tạo bản sao nội dung bên dưới, sau đó thực hiện các yêu cầu định dạng.</p><ol>${instructions}</ol>
-      <hr><section class="starter">${paragraphs}</section></body></html>`;
+    const paragraphs = [];
+    const addParagraph = (text, options = {}) => {
+      const runs = String(text).split('\\n').map(line => `<w:r><w:rPr>${options.bold ? '<w:b/>' : ''}${options.italic ? '<w:i/>' : ''}${options.size ? `<w:sz w:val="${options.size * 2}"/>` : ''}<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/></w:rPr><w:t xml:space="preserve">${escapeXml(line)}</w:t></w:r>`).join('<w:r><w:br/></w:r>');
+      paragraphs.push(`<w:p><w:pPr>${options.center ? '<w:jc w:val="center"/>' : ''}${options.spacing ? '<w:spacing w:before="120" w:after="120"/>' : ''}</w:pPr>${runs}</w:p>`);
+    };
+    addParagraph('ITC · CÂU LẠC BỘ TIN HỌC', { bold: true, center: true, size: 14 });
+    addParagraph('Trường Đại học Lâm nghiệp · Phân hiệu Đồng Nai', { center: true });
+    addParagraph(`ĐỀ THỰC HÀNH WORD · FORM ${officeExam.formNumber}`, { bold: true, center: true, size: 16, spacing: true });
+    addParagraph(officeExam.content.title, { bold: true, center: true, size: 18 });
+    addParagraph(`Thời gian gợi ý: ${officeExam.duration} phút. Hãy định dạng và hoàn thiện bài theo các yêu cầu bên dưới.`);
+    rubric.forEach(([title, points], index) => addParagraph(`${index + 1}. ${title} (${points} điểm)`));
+    paragraphs.push('<w:p><w:pPr><w:spacing w:before="240" w:after="240"/></w:pPr><w:r><w:pict><v:rect style="width:0;height:0"><v:textbox><w:txbxContent/></w:txbxContent></v:textbox></v:rect></w:pict></w:r></w:p>');
+    officeExam.content.paragraphs.forEach(paragraph => addParagraph(paragraph, { center: false, spacing: false }));
+
+    const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:v="urn:schemas-microsoft-com:vml"><w:body>${paragraphs.join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1417" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+    return makeZip([
+      { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>` },
+      { name: '_rels/.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>` },
+      { name: 'word/document.xml', data: documentXml }
+    ]);
   }
 
-  function makePowerPointOutline() {
-    return officeExam.content.slides.map(slide => [
-      slide.title,
-      ...slide.bullets.map(bullet => `\t${bullet}`)
-    ].join('\r\n')).join('\r\n');
+  function makePowerPointExercisePptx() {
+    const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>${officeExam.content.slides.map((_, i) => `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`).join('')}<Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/></Types>`;
+    const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/></Relationships>`;
+    const slideIds = officeExam.content.slides.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 2}"/>`).join('');
+    const presentation = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst>${slideIds}</p:sldIdLst><p:sldSz cx="9144000" cy="6858000" type="screen4x3"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>`;
+    const presentationRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>${officeExam.content.slides.map((_, i) => `<Relationship Id="rId${i + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i + 1}.xml"/>`).join('')}</Relationships>`;
+    const entries = [
+      { name: '[Content_Types].xml', data: contentTypes },
+      { name: '_rels/.rels', data: rootRels },
+      { name: 'ppt/presentation.xml', data: presentation },
+      { name: 'ppt/_rels/presentation.xml.rels', data: presentationRels },
+      { name: 'ppt/slideMasters/slideMaster1.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld><p:sldLayoutIdLst><p:sldLayoutId id="1" r:id="rId1"/></p:sldLayoutIdLst><p:txStyles/></p:sldMaster>` },
+      { name: 'ppt/slideMasters/_rels/slideMaster1.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/></Relationships>` },
+      { name: 'ppt/slideLayouts/slideLayout1.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="blank"><p:cSld name="Blank"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld></p:sldLayout>` },
+      { name: 'ppt/slideLayouts/_rels/slideLayout1.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>` },
+      { name: 'ppt/theme/theme1.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="ITC Theme"><a:themeElements><a:clrScheme name="ITC"><a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="44546A"/></a:dk2><a:lt2><a:srgbClr val="E7E6E6"/></a:lt2><a:accent1><a:srgbClr val="4472C4"/></a:accent1><a:accent2><a:srgbClr val="ED7D31"/></a:accent2><a:accent3><a:srgbClr val="A5A5A5"/></a:accent3><a:accent4><a:srgbClr val="FFC000"/></a:accent4><a:accent5><a:srgbClr val="5B9BD5"/></a:accent5><a:accent6><a:srgbClr val="70AD47"/></a:accent6><a:hlink><a:srgbClr val="0563C1"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink></a:clrScheme><a:fontScheme name="Office"><a:majorFont><a:latin typeface="Calibri Light"/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/></a:minorFont></a:fontScheme><a:fmtScheme name="Office"><a:fillStyleLst/><a:lnStyleLst/><a:effectStyleLst/><a:bgFillStyleLst/></a:fmtScheme></a:themeElements></a:theme>` }
+    ];
+    officeExam.content.slides.forEach((slide, index) => {
+      const shape = (id, name, text, y, fontSize) => `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${escapeXml(name)}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="${y}" /><a:ext cx="8232000" cy="${id === 2 ? 800000 : 4300000}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="vi-VN" sz="${fontSize}" b="${id === 2 ? '1' : '0'}"/><a:t>${escapeXml(text)}</a:t></a:r><a:endParaRPr lang="vi-VN" sz="${fontSize}"/></a:p></p:txBody></p:sp>`;
+      const bulletText = slide.bullets.map(bullet => `• ${bullet}`).join('\n');
+      const slideXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/><p:sp><p:nvSpPr><p:cNvPr id="2" name="Title"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="350000"/><a:ext cx="8232000" cy="800000"/></a:xfrm></p:spPr><p:txBody><a:bodyPr anchor="ctr"/><a:lstStyle/><a:p><a:r><a:rPr lang="vi-VN" sz="3200" b="1"/><a:t>${escapeXml(slide.title)}</a:t></a:r></a:p></p:txBody></p:sp>${shape(3, 'Body', bulletText, 1500000, 2400)}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
+      entries.push(
+        { name: `ppt/slides/slide${index + 1}.xml`, data: slideXml },
+        { name: `ppt/slides/_rels/slide${index + 1}.xml.rels`, data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>` }
+      );
+    });
+    return makeZip(entries);
+  }
+
+  function excelColumnName(index) {
+    let name = '';
+    for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) name = String.fromCharCode(65 + (n - 1) % 26) + name;
+    return name;
+  }
+
+  function makeExcelExerciseXlsx() {
+    const rows = [];
+    const template = window.CDR_PRACTICAL_TEMPLATES.find(item => item.id === practicalExam.templateId);
+    rows.push([`ITC - CÂU LAC BỘ TIN HỌC · ĐỀ THỰC HÀNH EXCEL · FORM ${practicalExam.formNumber}`]);
+    rows.push([template.name]);
+    rows.push([]);
+    practicalExam.sections.forEach(section => {
+      rows.push([section.title]);
+      section.rows.forEach(row => rows.push(row));
+      rows.push([]);
+    });
+    rows.push(['YÊU CẦU']);
+    template.rubric.forEach((item, index) => rows.push([`${index + 1}. ${item.title} (${item.points} điểm)`]));
+    const sheetRows = rows.map((row, rowIndex) => {
+      const cells = row.map((value, columnIndex) => {
+        const ref = `${excelColumnName(columnIndex)}${rowIndex + 1}`;
+        return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`;
+      }).join('');
+      return `<row r="${rowIndex + 1}">${cells}</row>`;
+    }).join('');
+    const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetData>${sheetRows}</sheetData><cols><col min="1" max="1" width="28" customWidth="1"/><col min="2" max="20" width="18" customWidth="1"/></cols></worksheet>`;
+    return makeZip([
+      { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>` },
+      { name: '_rels/.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+      { name: 'xl/workbook.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Đề thực hành" sheetId="1" r:id="rId1"/></sheets></workbook>` },
+      { name: 'xl/_rels/workbook.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>` },
+      { name: 'xl/worksheets/sheet1.xml', data: sheet }
+    ]);
   }
 
   function downloadOfficeExercise(appKind) {
     if (!officeExam || officeExam.appKind !== appKind) return;
     const filename = appKind === 'word'
-      ? `ITC_De-thuc-hanh-Word_Form-${officeExam.formNumber}.html`
-      : `ITC_De-thuc-hanh-PowerPoint_Form-${officeExam.formNumber}.txt`;
-    const content = appKind === 'word' ? makeWordExerciseHtml() : makePowerPointOutline();
-    const mimeType = appKind === 'word' ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8';
+      ? `ITC_De-thuc-hanh-Word_Form-${officeExam.formNumber}.docx`
+      : `ITC_De-thuc-hanh-PowerPoint_Form-${officeExam.formNumber}.pptx`;
+    const bytes = appKind === 'word' ? makeWordExerciseDocx() : makePowerPointExercisePptx();
+    const mimeType = appKind === 'word'
+      ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      : 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
     try {
-      const blob = new Blob(['\\uFEFF', content], { type: mimeType });
+      const blob = new Blob([bytes], { type: mimeType });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -766,12 +927,12 @@
     }
   }
 
-  function downloadPracticalCsv() {
+  function downloadPracticalExcel() {
     if (!practicalExam) return;
     const template = window.CDR_PRACTICAL_TEMPLATES.find(item => item.id === practicalExam.templateId);
-    const filename = `ITC_De-thuc-hanh-${template.id}_Form-${practicalExam.formNumber}.csv`;
+    const filename = `ITC_De-thuc-hanh-${template.id}_Form-${practicalExam.formNumber}.xlsx`;
     try {
-      const blob = new Blob([practicalCsv(practicalExam.sections)], { type: 'text/csv;charset=utf-8' });
+      const blob = new Blob([makeExcelExerciseXlsx()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -780,9 +941,9 @@
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      notify('Đã tải bộ dữ liệu bài thực hành.');
+      notify('Đã tải đề thực hành Excel.');
     } catch (error) {
-      notify(`Không thể tạo tệp CSV: ${error.message}`, true);
+      notify(`Không thể tạo tệp Excel: ${error.message}`, true);
     }
   }
 
@@ -1130,7 +1291,7 @@
       return;
     }
     if (event.target.closest('[data-download-practical]')) {
-      downloadPracticalCsv();
+      downloadPracticalExcel();
       return;
     }
     if (event.target.closest('[data-finish-practical]')) {

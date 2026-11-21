@@ -1,0 +1,28 @@
+﻿ITC - CÂU LẠC BỘ TIN HỌC · ĐỀ THỰC HÀNH EXCEL
+
+DOANH SỐ BÁN HÀNG THEO QUÝ
+STT;Mã hóa đơn;Tháng;Tên hàng;Quy cách;Số lượng;Đơn giá;Thành tiền
+1;AT101;2;;;153;;
+2;AT102;2;;;233;;
+3;DS103;2;;;83;;
+4;GV104;2;;;237;;
+5;DS105;1;;;101;;
+6;DS206;1;;;16;;
+7;DS107;2;;;252;;
+8;GV108;1;;;193;;
+9;QN109;2;;;196;;
+10;GV110;2;;;61;;
+
+BẢNG TRA TÊN HÀNG VÀ ĐƠN GIÁ
+Mã hàng;Tên hàng;Đơn giá tháng 1;Đơn giá tháng 2
+AT;Áo thun;150;190
+GV;Giầy;220;275
+DS;Dép;150;167
+QN;Quần Jean;150;120
+
+BẢNG THỐNG KÊ
+Tên hàng;Thành tiền;Số lượng đơn hàng
+Áo thun;;
+Giầy;;
+Dép;;
+Quần Jean;;

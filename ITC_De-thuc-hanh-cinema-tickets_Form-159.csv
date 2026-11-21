@@ -1,0 +1,26 @@
+﻿ITC - CÂU LẠC BỘ TIN HỌC · ĐỀ THỰC HÀNH EXCEL
+
+LỊCH CHIẾU VÀ DOANH THU VÉ PHIM
+STT;Mã vé phim;Tên phim;Giờ chiếu;SL vé;Giá vé;Thành tiền
+1;FF2A4;;;3;;
+2;FF1C4;;;7;;
+3;TR1C1;;;7;;
+4;PV2C4;;;7;;
+5;TR1A4;;;6;;
+6;PV2C2;;;5;;
+7;PV2C3;;;8;;
+8;PV1A2;;;4;;
+9;FF2A3;;;7;;
+10;PV1C4;;;5;;
+
+BẢNG GIÁ VÉ
+Mã phim;Tên phim;Trẻ em;Người lớn
+FF;Fast & Furious 9;55000;80000
+TR;Trăng Rơi;52000;85000
+PV;Phi Vụ Đen;54000;82000
+
+BẢNG THỐNG KÊ
+Tên phim;SL vé;SL đặt
+Fast & Furious 9;;
+Trăng Rơi;;
+Phi Vụ Đen;;
