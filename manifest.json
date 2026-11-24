@@ -1,0 +1,18 @@
+{
+  "name": "ITC - Chuẩn đầu ra Tin học 2022",
+  "short_name": "CDR Tin học",
+  "description": "Không gian ôn tập và thi thử Tin học",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#4667e8",
+  "icons": [
+    {
+      "src": "assets/cdr-tinhoc-logo-silver-icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
